@@ -6,5 +6,7 @@ psycopg2-binary
 pydantic
 pydantic-settings
 python-dotenv
+pyjwt
+bcrypt
 pytest
 httpx  # required by fastapi.testclient.TestClient, used in tests/

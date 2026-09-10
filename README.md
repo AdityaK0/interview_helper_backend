@@ -240,3 +240,68 @@ update, delete, the 404 case, and the 422 validation case.
 `GET /health` → `{"status": "ok"}` — a plain liveness check with no
 database dependency, so an unrelated DB blip can't make an orchestrator
 kill and restart an otherwise-healthy process.
+
+---
+
+## SaaS / Electron Backend Modules
+
+Beyond `notes/`, the backend is the server-side authority for an Electron
+desktop client, which is treated as untrusted — it never decides its own
+auth validity, entitlement, or subscription state. Each module below
+follows the same layering as `notes/` (only where a layer is actually
+needed):
+
+```
+users/          — User (email, password_hash) — internal only, no public API
+auth/           — register/login/refresh/logout, current-user dependency,
+                   Session model (a rotating opaque refresh token bound to
+                   one installation — this is the "application session")
+installations/  — device identity, revocation
+subscriptions/  — Subscription + Plan enum, data-driven PLAN_CATALOG
+                   (subscriptions/plans.py) for features/duration/price
+entitlements/   — computed only, no table — reads subscriptions + PLAN_CATALOG
+payments/       — Payment + a PaymentProvider abstraction (payments/providers.py),
+                   webhook-driven state changes
+application/    — ApplicationVersion — update-required policy for the client
+```
+
+```http
+POST   /auth/register
+POST   /auth/login              {email, password, installation_id, ...}
+POST   /auth/refresh            {refresh_token}
+POST   /auth/logout             {refresh_token}
+GET    /auth/me
+
+GET    /installations/me
+POST   /installations/{id}/revoke
+
+GET    /subscriptions/me
+GET    /entitlements/me
+
+POST   /payments/orders         {plan}
+GET    /payments/me
+POST   /payments/webhook/{provider}
+
+GET    /app/version             ?platform=&current_version=
+GET    /app/config
+```
+
+**Auth model**: access tokens are short-lived JWTs (`JWT_SECRET_KEY`,
+`ACCESS_TOKEN_EXPIRE_MINUTES`); refresh tokens are opaque
+(`{session_id}.{secret}`), only a SHA-256 hash of the secret is stored, and
+every refresh rotates it (`REFRESH_TOKEN_EXPIRE_DAYS`). A refresh fails if
+its installation has been revoked — revoking a device kills every session
+tied to it.
+
+**Payments**: `payments/providers.py` defines a `PaymentProvider`
+interface so subscriptions aren't coupled to one payment provider.
+`RazorpayProvider` is a foundation only (HMAC-SHA256 webhook verification,
+matching Razorpay's documented scheme) — no live SDK call is made when
+creating an order. Wire a real provider integration before accepting live
+payments; see the `TODO`s in `subscriptions/plans.py` (placeholder prices)
+and `payments/service.py` (order creation).
+
+**Not implemented** (explicitly out of scope for this pass, per the
+"don't overengineer" brief): rate limiting, a real payment gateway SDK
+integration, and any server-side LLM proxy — provider API keys for BYOK
+stay client-side in Electron's OS keychain, never in this database.

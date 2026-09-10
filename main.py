@@ -6,6 +6,12 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from config import settings
 from notes.api import notes_router
+from auth.api import auth_router
+from installations.api import installations_router
+from subscriptions.api import subscriptions_router
+from entitlements.api import entitlements_router
+from payments.api import payments_router
+from application.api import app_router
 from utils.exceptions import AppException
 from middleware.request_logging import RequestLoggingMiddleware
 from middleware.security import SecurityHeadersMiddleware
@@ -50,3 +56,9 @@ def health_check():
 
 
 app.include_router(notes_router)
+app.include_router(auth_router)
+app.include_router(installations_router)
+app.include_router(subscriptions_router)
+app.include_router(entitlements_router)
+app.include_router(payments_router)
+app.include_router(app_router)

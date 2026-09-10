@@ -9,6 +9,12 @@ from database import Base
 
 # Import all models so Alembic sees them
 from notes import models as note_models  # noqa: F401
+from users import models as user_models  # noqa: F401
+from installations import models as installation_models  # noqa: F401
+from auth import models as auth_models  # noqa: F401
+from subscriptions import models as subscription_models  # noqa: F401
+from payments import models as payment_models  # noqa: F401
+from application import models as application_models  # noqa: F401
 
 config = context.config
 db_url = settings.DATABASE_URL
